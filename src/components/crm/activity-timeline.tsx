@@ -11,6 +11,7 @@ import {
   XCircle,
   Ban,
   AlertTriangle,
+  FlaskConical,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -30,6 +31,7 @@ const ACTIVITY_ICON: Record<ActivityType, LucideIcon> = {
   perda: XCircle,
   automacao_cancelada: Ban,
   automacao_erro: AlertTriangle,
+  automacao_simulada: FlaskConical,
 };
 
 export function ActivityTimeline({ activities }: { activities: LeadActivity[] }) {

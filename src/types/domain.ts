@@ -56,6 +56,7 @@ export const ACTIVITY_TYPES = [
   "perda",
   "automacao_cancelada",
   "automacao_erro",
+  "automacao_simulada",
 ] as const;
 
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
@@ -148,6 +149,7 @@ export const AUTOMATION_JOB_STATUSES = [
   "pending",
   "processing",
   "sent",
+  "simulated",
   "canceled",
   "failed",
 ] as const;

@@ -17,7 +17,7 @@ interface ClaimedJob {
 export interface ProcessJobResult {
   jobId: string;
   leadId: string;
-  outcome: "sent" | "skipped" | "failed";
+  outcome: "sent" | "simulated" | "skipped" | "failed";
   detail?: string;
 }
 
@@ -89,11 +89,68 @@ async function processClaimedJob(supabase: AdminClient, job: ClaimedJob): Promis
   }
 
   const messageBody = renderTemplate(template, lead as Lead);
-  const dryRun = isAutomationDryRun();
 
-  const sendResult = dryRun
-    ? { ok: true as const, waMessageId: undefined }
-    : await sendWhatsAppText(lead.phone, messageBody);
+  if (isAutomationDryRun()) {
+    return simulateFirstContact(supabase, job, lead as Lead, messageBody);
+  }
+
+  return sendFirstContact(supabase, job, lead as Lead, template, messageBody);
+}
+
+/**
+ * AUTOMATION_DRY_RUN=true — simula o processamento do job sem nenhum
+ * efeito comercial: NÃO chama a WhatsApp Cloud API, NÃO grava mensagem em
+ * `messages`, NÃO muda o estágio do lead, NÃO atualiza `contacted_at`.
+ * Existe só para validar que reivindicação de job / regras de negócio /
+ * observabilidade funcionam de ponta a ponta antes do WhatsApp estar
+ * conectado — sem deixar o CRM com um estado que pareça um contato real.
+ */
+async function simulateFirstContact(
+  supabase: AdminClient,
+  job: ClaimedJob,
+  lead: Lead,
+  messageBody: string,
+): Promise<ProcessJobResult> {
+  const now = new Date().toISOString();
+
+  await logIntegrationEvent({
+    provider: "automation",
+    status: "skipped",
+    message: "[DRY-RUN] Primeiro contato seria enviado, mas AUTOMATION_DRY_RUN=true — WhatsApp não foi chamado",
+    eventType: "first_contact_dry_run",
+    leadId: lead.id,
+    context: { messageBody },
+  });
+
+  await supabase.from("lead_activities").insert({
+    lead_id: lead.id,
+    type: "automacao_simulada",
+    title: "Simulação de automação (dry-run)",
+    description: `Nenhuma mensagem real foi enviada e o lead NÃO foi marcado como contatado — AUTOMATION_DRY_RUN=true. Conteúdo que seria enviado:\n${messageBody}`,
+  });
+
+  await supabase
+    .from("automation_jobs")
+    .update({ status: "simulated", processed_at: now })
+    .eq("id", job.id);
+
+  return { jobId: job.id, leadId: lead.id, outcome: "simulated" };
+}
+
+/**
+ * Envio real. Só depois que a WhatsApp Cloud API CONFIRMA sucesso é que o
+ * lead é marcado como contatado — se a API falhar, o lead permanece
+ * intocado (nada de "Contato enviado" falso) e o job segue a estratégia
+ * de retry em `failJob`.
+ */
+async function sendFirstContact(
+  supabase: AdminClient,
+  job: ClaimedJob,
+  lead: Lead,
+  template: MessageTemplate,
+  messageBody: string,
+): Promise<ProcessJobResult> {
+  const sendResult = await sendWhatsAppText(lead.phone, messageBody);
 
   if (!sendResult.ok) {
     await failJob(supabase, job, sendResult.error ?? "Falha ao enviar mensagem");
@@ -105,46 +162,23 @@ async function processClaimedJob(supabase: AdminClient, job: ClaimedJob): Promis
       eventType: "first_contact_send",
       leadId: lead.id,
     });
-    return { jobId: job.id, leadId: job.lead_id, outcome: "failed", detail: sendResult.error };
+    return { jobId: job.id, leadId: lead.id, outcome: "failed", detail: sendResult.error };
   }
 
+  // A partir daqui a API já confirmou o envio — só agora registramos
+  // efeitos comerciais reais.
   const conversation = await getOrCreateConversation(supabase, lead.id, lead.phone);
   const now = new Date().toISOString();
 
-  if (dryRun) {
-    // AUTOMATION_DRY_RUN=true: NÃO chama a WhatsApp Cloud API de verdade e
-    // NÃO grava linha em `messages` (essa tabela representa envios reais).
-    // O resto do fluxo (job, estágio do lead, timeline) roda normalmente
-    // para validar a automação de ponta a ponta antes do WhatsApp estar
-    // conectado.
-    await logIntegrationEvent({
-      provider: "automation",
-      status: "skipped",
-      message: "[DRY-RUN] Primeiro contato seria enviado, mas AUTOMATION_DRY_RUN=true — WhatsApp não foi chamado",
-      eventType: "first_contact_dry_run",
-      leadId: lead.id,
-      context: { messageBody },
-    });
-  } else {
-    await supabase.from("messages").insert({
-      conversation_id: conversation.id,
-      lead_id: lead.id,
-      direction: "outbound",
-      status: "sent",
-      body: messageBody,
-      template_id: template.id,
-      wa_message_id: sendResult.waMessageId,
-    });
-
-    await logIntegrationEvent({
-      provider: "automation",
-      status: "success",
-      message: "Primeiro contato enviado",
-      eventType: "first_contact_send",
-      externalId: sendResult.waMessageId,
-      leadId: lead.id,
-    });
-  }
+  await supabase.from("messages").insert({
+    conversation_id: conversation.id,
+    lead_id: lead.id,
+    direction: "outbound",
+    status: "sent",
+    body: messageBody,
+    template_id: template.id,
+    wa_message_id: sendResult.waMessageId,
+  });
 
   await supabase.from("conversations").update({ last_message_at: now }).eq("id", conversation.id);
   await supabase.from("leads").update({ stage: "contato_enviado", contacted_at: now }).eq("id", lead.id);
@@ -153,10 +187,8 @@ async function processClaimedJob(supabase: AdminClient, job: ClaimedJob): Promis
     {
       lead_id: lead.id,
       type: "mensagem_enviada",
-      title: dryRun ? "[TESTE] Primeiro contato simulado (dry-run)" : "Mensagem de primeiro contato enviada",
-      description: dryRun
-        ? `Modo de teste — nenhuma mensagem real foi enviada. Conteúdo que seria enviado:\n${messageBody}`
-        : messageBody,
+      title: "Mensagem de primeiro contato enviada",
+      description: messageBody,
       dedupe_key: sendResult.waMessageId ? `wa_out:${sendResult.waMessageId}` : null,
     },
     {
@@ -172,7 +204,16 @@ async function processClaimedJob(supabase: AdminClient, job: ClaimedJob): Promis
     .update({ status: "sent", processed_at: now })
     .eq("id", job.id);
 
-  return { jobId: job.id, leadId: job.lead_id, outcome: "sent", detail: dryRun ? "dry-run" : undefined };
+  await logIntegrationEvent({
+    provider: "automation",
+    status: "success",
+    message: "Primeiro contato enviado",
+    eventType: "first_contact_send",
+    externalId: sendResult.waMessageId,
+    leadId: lead.id,
+  });
+
+  return { jobId: job.id, leadId: lead.id, outcome: "sent" };
 }
 
 /**
