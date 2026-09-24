@@ -1,0 +1,15 @@
+# Careli Leads — configuração de build para a Netlify.
+#
+# O plugin oficial (@netlify/plugin-nextjs) é detectado e instalado
+# automaticamente pela Netlify em projetos Next.js — não é preciso (e não
+# é recomendado) declará-lo nem fixar sua versão aqui. Route Handlers,
+# Server Actions e middleware/proxy viram Netlify Functions/Edge Functions
+# de forma automática.
+# Docs: https://docs.netlify.com/build/frameworks/framework-setup-guides/nextjs/overview/
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
