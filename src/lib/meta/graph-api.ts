@@ -8,7 +8,7 @@ import "server-only";
  * https://developers.facebook.com/docs/graph-api/changelog antes de ir para
  * produção — versões antigas são desativadas periodicamente pela Meta.
  */
-const GRAPH_API_VERSION = process.env.META_GRAPH_API_VERSION ?? "v23.0";
+const GRAPH_API_VERSION = process.env.META_GRAPH_API_VERSION ?? "v25.0";
 
 export interface MetaLeadFieldData {
   name: string;

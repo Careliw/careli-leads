@@ -13,3 +13,14 @@ export function renderTemplate(template: MessageTemplate, lead: Lead): string {
     return resolver ? resolver(lead) : match;
   });
 }
+
+/**
+ * Resolve `template.variables` (ex: ['nome', 'empresa']) para os valores
+ * do lead, na mesma ordem — é o que a WhatsApp Cloud API espera como
+ * `parameters` posicionais ({{1}}, {{2}}...) de um Message Template
+ * aprovado pela Meta. A ordem em `variables` precisa bater exatamente
+ * com a ordem dos placeholders no template cadastrado no WhatsApp Manager.
+ */
+export function resolveTemplateVariables(template: MessageTemplate, lead: Lead): string[] {
+  return template.variables.map((key) => TEMPLATE_VARS[key]?.(lead) ?? "");
+}

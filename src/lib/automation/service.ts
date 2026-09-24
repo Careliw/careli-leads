@@ -1,7 +1,7 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendWhatsAppText } from "@/lib/whatsapp/cloud-api";
-import { renderTemplate } from "@/lib/templates/render";
+import { sendWhatsAppTemplate } from "@/lib/whatsapp/cloud-api";
+import { renderTemplate, resolveTemplateVariables } from "@/lib/templates/render";
 import { logIntegrationEvent } from "@/lib/observability/log";
 import type { Lead, MessageTemplate } from "@/types/domain";
 
@@ -138,10 +138,16 @@ async function simulateFirstContact(
 }
 
 /**
- * Envio real. Só depois que a WhatsApp Cloud API CONFIRMA sucesso é que o
- * lead é marcado como contatado — se a API falhar, o lead permanece
- * intocado (nada de "Contato enviado" falso) e o job segue a estratégia
- * de retry em `failJob`.
+ * Envio real. A primeira mensagem para um lead está SEMPRE fora da janela
+ * de 24h de atendimento — o WhatsApp só aceita um Message Template
+ * aprovado pela Meta nesse caso, texto livre é rejeitado pela API. Por
+ * isso `template.wa_template_name` (preenchido depois que o template é
+ * aprovado no WhatsApp Manager) é obrigatório aqui.
+ *
+ * Só depois que a WhatsApp Cloud API CONFIRMA sucesso é que o lead é
+ * marcado como contatado — se a API falhar, o lead permanece intocado
+ * (nada de "Contato enviado" falso) e o job segue a estratégia de retry
+ * em `failJob`.
  */
 async function sendFirstContact(
   supabase: AdminClient,
@@ -150,7 +156,26 @@ async function sendFirstContact(
   template: MessageTemplate,
   messageBody: string,
 ): Promise<ProcessJobResult> {
-  const sendResult = await sendWhatsAppText(lead.phone, messageBody);
+  if (!template.wa_template_name) {
+    const message =
+      'Template "first_contact" ainda não tem wa_template_name configurado — cadastre e aprove o template no WhatsApp Manager antes de desativar o modo dry-run.';
+    await failJob(supabase, job, message);
+    await logIntegrationEvent({
+      provider: "automation",
+      status: "error",
+      message,
+      eventType: "first_contact_send",
+      leadId: lead.id,
+    });
+    return { jobId: job.id, leadId: lead.id, outcome: "failed", detail: message };
+  }
+
+  const sendResult = await sendWhatsAppTemplate(
+    lead.phone,
+    template.wa_template_name,
+    template.wa_template_language ?? "pt_BR",
+    resolveTemplateVariables(template, lead),
+  );
 
   if (!sendResult.ok) {
     await failJob(supabase, job, sendResult.error ?? "Falha ao enviar mensagem");

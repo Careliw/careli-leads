@@ -14,7 +14,7 @@ import { toWhatsAppPhone } from "@/lib/phone";
 
 // Confira a versão estável atual em https://developers.facebook.com/docs/graph-api/changelog
 // antes de ir para produção — versões antigas são desativadas periodicamente pela Meta.
-const GRAPH_API_VERSION = process.env.WHATSAPP_GRAPH_API_VERSION ?? "v23.0";
+const GRAPH_API_VERSION = process.env.WHATSAPP_GRAPH_API_VERSION ?? "v25.0";
 
 function getBaseUrl() {
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
