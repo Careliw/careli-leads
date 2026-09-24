@@ -4,10 +4,12 @@ CRM web para um gestor de tráfego acompanhar leads do Meta Lead Ads, disparar o
 primeiro contato automático pelo WhatsApp (10 min após a entrada) e conduzir o
 lead por um pipeline comercial até venda ou perda.
 
-> **Status:** arquitetura e infraestrutura prontas para produção. Meta Lead
-> Ads e WhatsApp Business Platform **ainda não estão conectados** — os
-> webhooks existem e são idempotentes, mas só devem ser ligados a apps/
-> números reais numa etapa seguinte (ver "Próximos passos" no final).
+> **Status:** em produção em https://careli-leads.netlify.app (Supabase real,
+> Auth funcionando, worker de automação rodando via pg_cron a cada minuto em
+> `AUTOMATION_DRY_RUN=true`). Meta Lead Ads e WhatsApp Business Platform
+> **ainda não estão conectados** — os webhooks existem e são idempotentes,
+> mas só devem ser ligados a apps/números reais numa etapa seguinte (ver
+> "Próximos passos" no final). Banco de produção sem dados fictícios.
 
 ## Stack
 
@@ -128,14 +130,28 @@ Functions sem configuração extra.
 
 ### Passos
 
-1. Conecte o repositório na Netlify (New site from Git).
+1. Conecte o repositório na Netlify (New site from Git → escolher o repo no
+   GitHub, branch `main`). O deploy via upload direto (`netlify deploy`)
+   não funcionou de forma confiável neste projeto (erro 500 recorrente);
+   o caminho testado e funcionando é o deploy conectado ao Git, que também
+   dá deploy automático a cada push.
 2. Configure as environment variables (Site settings → Environment
    variables) — mesma lista do `.env.example`, com os valores reais:
    - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
      `SUPABASE_SERVICE_ROLE_KEY`
    - `AUTOMATION_CRON_SECRET` (gere um valor aleatório longo)
+   - `AUTOMATION_DRY_RUN=true` enquanto o WhatsApp não estiver conectado
    - `META_*` e `WHATSAPP_*` só quando for conectar de verdade (etapa
      seguinte — ver abaixo)
+
+   > ⚠️ **Não marque essas variáveis como "contains secret values" /
+   > sensitive na Netlify.** Em teste real, variáveis marcadas como secret
+   > não ficaram disponíveis em runtime para as Functions (erro
+   > `supabaseKey is required.` mesmo com o valor salvo) — o mesmo valor
+   > funcionou normalmente como env var comum. Isso não expõe nada ao
+   > navegador: variáveis sem `NEXT_PUBLIC_` nunca entram no bundle do
+   > cliente de qualquer forma, só ficam visíveis para quem tem acesso ao
+   > painel da Netlify.
 3. Deploy. A Netlify expõe a URL do site (ex: `https://careli-leads.netlify.app`).
 4. **Ligue o worker de automação** (ver seção abaixo) apontando para
    `https://<seu-site>.netlify.app/api/automation/run`.
