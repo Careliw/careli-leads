@@ -1,6 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { processPendingAutomationJobs } from "@/lib/automation/service";
+import { logIntegrationEvent } from "@/lib/observability/log";
+import { sanitizeText } from "@/lib/observability/sanitize";
 
 export const runtime = "nodejs";
 
@@ -17,12 +19,28 @@ export async function POST(request: NextRequest) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const results = await processPendingAutomationJobs();
+  try {
+    const results = await processPendingAutomationJobs();
 
-  return NextResponse.json({
-    processed: results.length,
-    results,
-  });
+    return NextResponse.json({
+      processed: results.length,
+      results,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await logIntegrationEvent({
+      provider: "automation",
+      status: "error",
+      message: "Falha não tratada no worker de automação",
+      errorMessage: message,
+      eventType: "cron_tick",
+    });
+    // Mensagem sanitizada só para diagnóstico rápido — nunca expõe segredos
+    // (ver lib/observability/sanitize.ts), mas ainda não é para consumo
+    // público; considerar remover o campo `error` daqui antes de anunciar
+    // o endpoint publicamente.
+    return NextResponse.json({ error: sanitizeText(message) }, { status: 500 });
+  }
 }
 
 // Aceita GET também para facilitar testes manuais/curl em desenvolvimento.
