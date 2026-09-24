@@ -1,4 +1,4 @@
-import { LogOut, User } from "lucide-react";
+import { ChevronsUpDown, LogOut, User } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/is-configured";
@@ -12,8 +12,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+import { SidebarMenuButton } from "@/components/ui/sidebar";
+import { ThemeToggleRow } from "@/components/theme/theme-toggle";
 
+/** Linha de usuário no rodapé da sidebar: avatar, e-mail, tema e logout. */
 export async function UserMenu() {
   let email = "convidado";
 
@@ -29,19 +31,25 @@ export async function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full">
-          <Avatar className="size-8">
-            <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
+        <SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent">
+          <Avatar className="size-7 rounded-md">
+            <AvatarFallback className="rounded-md bg-primary/15 text-primary text-xs font-semibold">
               {initials}
             </AvatarFallback>
           </Avatar>
-        </Button>
+          <span className="truncate text-sm">{email}</span>
+          <ChevronsUpDown className="ml-auto size-4 text-sidebar-foreground/50" />
+        </SidebarMenuButton>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align="start" side="top" className="w-64">
         <DropdownMenuLabel className="flex flex-col gap-0.5">
           <span className="text-sm font-medium">{email}</span>
           <span className="text-xs font-normal text-muted-foreground">Gestor de tráfego</span>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <div className="px-2 py-1.5">
+          <ThemeToggleRow />
+        </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <a href="/configuracoes">

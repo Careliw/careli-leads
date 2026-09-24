@@ -10,7 +10,7 @@ export default async function PipelinePage() {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <TopBar title="Pipeline" description="Arraste os cards entre as colunas" />
+      <TopBar title="Pipeline" description="Acompanhe o funil comercial" />
       <div className="flex flex-1 flex-col gap-4 overflow-hidden p-4 sm:p-6">
         {!configured ? <SupabaseSetupNotice /> : null}
         <div className="flex-1 overflow-hidden">

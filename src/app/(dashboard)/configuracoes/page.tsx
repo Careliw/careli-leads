@@ -14,12 +14,12 @@ function StatusRow({ label, ok, hint }: { label: string; ok: boolean; hint: stri
         <p className="text-xs text-muted-foreground">{hint}</p>
       </div>
       {ok ? (
-        <Badge variant="outline" className="gap-1 border-emerald-500/20 bg-emerald-500/10 text-emerald-600">
+        <Badge variant="outline" className="gap-1 border-success/20 bg-success/10 text-success">
           <CheckCircle2 className="size-3" />
           Configurado
         </Badge>
       ) : (
-        <Badge variant="outline" className="gap-1 border-red-500/20 bg-red-500/10 text-red-600">
+        <Badge variant="outline" className="gap-1 border-destructive/20 bg-destructive/10 text-destructive">
           <XCircle className="size-3" />
           Pendente
         </Badge>
@@ -86,6 +86,10 @@ export default async function ConfiguracoesPage() {
             </p>
           </CardContent>
         </Card>
+
+        <p className="pt-2 text-center text-xs text-muted-foreground">
+          Careli Leads · by Wesley Careli
+        </p>
       </div>
     </div>
   );

@@ -13,7 +13,17 @@ import {
 import { changeLeadStageAction } from "@/app/(dashboard)/leads/[id]/actions";
 import { PIPELINE_STAGES, LEAD_STAGE_LABELS, type LeadStage } from "@/types/domain";
 
-export function LeadStageSelect({ leadId, stage }: { leadId: string; stage: LeadStage }) {
+export function LeadStageSelect({
+  leadId,
+  stage,
+  triggerClassName = "w-full sm:w-56",
+  onChanged,
+}: {
+  leadId: string;
+  stage: LeadStage;
+  triggerClassName?: string;
+  onChanged?: (stage: LeadStage) => void;
+}) {
   const [isPending, startTransition] = useTransition();
 
   return (
@@ -24,10 +34,12 @@ export function LeadStageSelect({ leadId, stage }: { leadId: string; stage: Lead
         startTransition(async () => {
           await changeLeadStageAction(leadId, value as LeadStage);
           toast.success(`Status atualizado para "${LEAD_STAGE_LABELS[value as LeadStage]}"`);
+          onChanged?.(value as LeadStage);
         });
       }}
     >
-      <SelectTrigger className="w-full sm:w-56">
+      {/* onClick impede o Select de disparar o clique do <Link> pai (cards clicáveis). */}
+      <SelectTrigger className={triggerClassName} onClick={(e) => e.stopPropagation()}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

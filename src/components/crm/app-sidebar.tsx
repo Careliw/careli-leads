@@ -9,7 +9,7 @@ import {
   Zap,
   MessageCircle,
   Settings,
-  Target,
+  Filter,
 } from "lucide-react";
 
 import {
@@ -33,7 +33,7 @@ const NAV_ITEMS = [
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
-export function AppSidebar() {
+export function AppSidebar({ userMenu }: { userMenu: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
@@ -41,11 +41,10 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-1.5">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Target className="size-4" />
+            <Filter className="size-4" />
           </div>
           <div className="flex flex-col leading-none group-data-[collapsible=icon]:hidden">
             <span className="font-semibold text-sidebar-foreground">Careli Leads</span>
-            <span className="text-xs text-sidebar-foreground/60">CRM de tráfego</span>
           </div>
         </div>
       </SidebarHeader>
@@ -71,9 +70,9 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <div className="px-2 py-1 text-xs text-sidebar-foreground/50 group-data-[collapsible=icon]:hidden">
-          v0.1 · MVP
-        </div>
+        <SidebarMenu>
+          <SidebarMenuItem>{userMenu}</SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );

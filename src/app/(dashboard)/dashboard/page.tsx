@@ -47,7 +47,7 @@ export default async function DashboardPage() {
       <div className="flex flex-1 flex-col gap-4 p-4 sm:p-6">
         {!configured ? <SupabaseSetupNotice /> : null}
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard label="Leads hoje" value={stats.leadsToday} icon={CalendarDays} highlight />
           <StatCard label="Leads na semana" value={stats.leadsWeek} icon={CalendarRange} />
           <StatCard label="Leads no mês" value={stats.leadsMonth} icon={Users} />
